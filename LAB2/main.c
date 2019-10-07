@@ -68,7 +68,8 @@ uint16_t count = 0;
 char* time[5];
 uint32_t BestResult;
 uint32_t randtime;
-int too = 0;
+int statevar = 0;
+uint32_t user_time;
 
 RNG_HandleTypeDef Rng_Handle;
 
@@ -142,6 +143,8 @@ int main(void)
   {
 		Error_Handler();
   }
+	
+	EE_WriteVariable(VirtAddVarTab[0], NULL);
 // then can write to or read from the emulated EEPROM
 
 
@@ -390,7 +393,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch (GPIO_Pin) {
 			case GPIO_PIN_0: 		 //SEL_JOY_PIN    			
-								button_push = true;
+								statevar ++;
 								//button_down = false;
 								//count = 0;
 			/* Toggle LED4 */
@@ -447,9 +450,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) //see  stm32fxx_hal_
 																													//for timer 3 , Timer 3 use update event initerrupt
 {
 	
-	if ((*htim).Instance==TIM2 && button_push == false){    //since only one timer, this line is actually not needed
-		//if (button_push == true)
-		BSP_LED_Toggle(LED5);
+	if ((*htim).Instance==TIM2 && statevar == 0){    //since only one timer, this line is actually not needed
+		BSP_LED_Toggle(LED5); //BLINK LED AT START
+	}
 		//HAL_RNG_GenerateRandomNumber(&Rng_Handle, &BestResult);
 		//HAL_RNG_ReadLastRandomNumber(&Rng_Handle);
 		//BestResult = HAL_RNG_GetRandomNumber(&Rng_Handle);
@@ -464,30 +467,47 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) //see  stm32fxx_hal_
 		//BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
 		//printf("%d", BestResult);
 		
-}
+
 	
-	if(button_push == true && too == 0){
-		if(too > 100){
+	if(statevar == 1){
+
+		HAL_RNG_GenerateRandomNumber(&Rng_Handle, &randtime);
 			
+		for (int i = 13; i < 33; i++){
+			randtime &= ~(1<<i);
 		}
-		HAL_RNG_GenerateRandomNumber(&Rng_Handle, &BestResult);
-			
-		for (int i = 9; i < 33; i++){
-			BestResult &= ~(1<<i);
-		}
-		EE_WriteVariable(VirtAddVarTab[0], BestResult);//, VirtAddVarTab);
-		EE_ReadVariable(VirtAddVarTab[0], &EEREAD);
-		sprintf(lcd_buffer, "%d", EEREAD);
+	
+		//MAKE TIMER 4 RUN RANDTIME LONG BEFORE SWITCHING TO NEXT STATE 
+	}
+		/*EE_WriteVariable(VirtAddVarTab[0], BestResult);//, VirtAddVarTab); WRITING TO EEPROM
+		EE_ReadVariable(VirtAddVarTab[0], &EEREAD); READING EEPROM
+		sprintf(lcd_buffer, "%d", EEREAD);PRINTINT NUMBER ON LCD
 		BSP_LCD_GLASS_Clear();
 		BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
-		too++;
-	}
+		
+	
 
-	if ((*htim).Instance ==TIM4 && button_push == true){
-		count ++;
+	if ((*htim).Instance ==TIM4 && statevar == 1){
+		BSP_LED_On(LED5); //AFTER RANDTIME TURN LED ON
+	}
+		/*count ++;
 		sprintf(lcd_buffer, "%d", count);
 		BSP_LCD_GLASS_Clear();
 		BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
+	*/
+	
+	if((*htim).Instance == TIM3 && statevar == 1){
+	//TIMES HOW LONG IT TAKES USER TO PRESS
+	user_time++;
+	//USER_TIME MUST INCREMENT EVERY MILLISECOND
+	}
+	
+	if(statevar == 2){
+		
+		if(user_time < BestResult){ //CHECK IF TIME IS LESS, NEED TO FIND A WAY TO SEE IF BESTRESULT IS EMPTY
+			BestResult = user_time;
+			EE_WriteVariable(VirtAddVarTab[0], BestResult);
+		}
 	}
 	
 
