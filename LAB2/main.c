@@ -64,16 +64,16 @@ __IO HAL_StatusTypeDef Hal_status;  //HAL_ERROR, HAL_TIMEOUT, HAL_OK, of HAL_BUS
 uint16_t EE_status=0;
 uint16_t VirtAddVarTab[NB_OF_VAR] = {0x5555, 0x6666, 0x7777}; // the emulated EEPROM can save 3 varibles, at these three addresses.
 uint16_t EEREAD;  //to practice reading the BESTRESULT save in the EE, for EE read/write, require uint16_t type
-uint16_t count = 0;
+uint16_t count = 2; //count
 char* time[5];
-uint32_t BestResult;
-uint32_t randtime;
-int statevar = 0;
-uint32_t user_time;
-
+uint16_t BestResult; //best time
+uint32_t randtime = 1; //random time
+int statevar = 0; //state
+uint16_t user_time = 0; //time to push button
+uint16_t EECHECK; //check if eeprom is empty
 RNG_HandleTypeDef Rng_Handle;
 
-
+__IO uint16_t Tim3_CCR;
 
 
 
@@ -83,6 +83,7 @@ static void SystemClock_Config(void);
 static void Error_Handler(void);
 void TIM3_Config(void);
 void TIM2_Config(void);
+void TIM4_Config(void);
 
 
 
@@ -106,12 +107,13 @@ int main(void)
        - Low Level Initialization
      */
 	HAL_Init();
-
+	//EE_WriteVariable(VirtAddVarTab[0], NULL);
   /* Configure the system clock to 4 MHz */
   SystemClock_Config();
 	TIM2_Config();
 	TIM3_Config();
- 
+	TIM4_Config();
+	Tim3_CCR = 1000;
 	HAL_InitTick(0x0000); //set the systick interrupt priority to the highest
 
 	BSP_LED_Init(LED4);
@@ -143,8 +145,10 @@ int main(void)
   {
 		Error_Handler();
   }
+
+
 	
-	EE_WriteVariable(VirtAddVarTab[0], NULL);
+
 // then can write to or read from the emulated EEPROM
 
 
@@ -168,7 +172,7 @@ Rng_Handle.Instance=RNG;  //Everytime declare a Handle, need to assign its Insta
   }
 //then can use RNG
 
-HAL_RNG_GenerateRandomNumber(&Rng_Handle, &randtime);
+//HAL_RNG_GenerateRandomNumber(&Rng_Handle, &randtime);
 
 	
 
@@ -284,12 +288,12 @@ void  TIM3_Config(void)
   ----------------------------------------------------------------------- */  
   
   /* Compute the prescaler value to have TIM3 counter clock equal to 10 KHz */
-  Tim3_PrescalerValue = (uint16_t) (SystemCoreClock/ 100000) - 1; //input 1 for to get 1 hz //overflow to reset oc ccr
+  Tim3_PrescalerValue = (uint16_t) (SystemCoreClock/ 1000000) - 1; //input 1 for to get 1 hz //overflow to reset oc ccr
   
   /* Set TIM3 instance */
   Tim3_Handle.Instance = TIM3; //TIM3 is defined in stm32f429xx.h
  
-  Tim3_Handle.Init.Period = 100;
+  Tim3_Handle.Init.Period = 1000 - 1;
   Tim3_Handle.Init.Prescaler = Tim3_PrescalerValue;
   Tim3_Handle.Init.ClockDivision = 0;
   Tim3_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -345,11 +349,11 @@ void  TIM4_Config(void)
 {
   
   /* Compute the prescaler value to have TIM3 counter clock equal to 10 KHz */
-  Tim4_PrescalerValue = (uint16_t) (SystemCoreClock/ 10000) - 1;
-  
+  Tim4_PrescalerValue = (uint16_t) (SystemCoreClock / (1/randtime)) - 1; //RANDTIME frequency
+
   /* Set TIM3 instance */
   Tim4_Handle.Instance = TIM4; 
-	Tim4_Handle.Init.Period = 40000; // Arr register (ovrflow) for timer 4, want timer 3
+	Tim4_Handle.Init.Period = randtime; // Arr register (ovrflow) for timer 4, want timer 3
   Tim4_Handle.Init.Prescaler = Tim4_PrescalerValue;
   Tim4_Handle.Init.ClockDivision = 0;
   Tim4_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
@@ -394,6 +398,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
   switch (GPIO_Pin) {
 			case GPIO_PIN_0: 		 //SEL_JOY_PIN    			
 								statevar ++;
+								if(statevar == 1){
+								button_push = true;
+								}
 								//button_down = false;
 								//count = 0;
 			/* Toggle LED4 */
@@ -446,73 +453,101 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 						BSP_LCD_GLASS_DisplayString((uint8_t*)"OTHER");
 	  } 
 }
+
+
+
+//write logic code here
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) //see  stm32fxx_hal_tim.c for different callback function names. 
 																													//for timer 3 , Timer 3 use update event initerrupt
 {
 	
-	if ((*htim).Instance==TIM2 && statevar == 0){    //since only one timer, this line is actually not needed
+	if ((*htim).Instance==TIM2 && statevar == 0){    
 		BSP_LED_Toggle(LED5); //BLINK LED AT START
 	}
-		//HAL_RNG_GenerateRandomNumber(&Rng_Handle, &BestResult);
-		//HAL_RNG_ReadLastRandomNumber(&Rng_Handle);
-		//BestResult = HAL_RNG_GetRandomNumber(&Rng_Handle);
-		//BestResult = HAL_RNG_ReadLastRandomNumber(&Rng_Handle);
-		//for (int i = 12; i < 33; i++){
-			//BestResult &= ~(1<<i);
-		//}
-		//HAL_RNG_ReadLastRandomNumber(&Rng_Handle);
-		//BestResult = HAL_RNG_GetRandomNumber(&Rng_Handle);
-		//sprintf(lcd_buffer, "%d", BestResult);
-		//BSP_LCD_GLASS_Clear();
-		//BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
-		//printf("%d", BestResult);
-		
 
 	
-	if(statevar == 1){
-
+	if(statevar == 1 && button_push == true){ //AFTER USER PUSH BUTTON, GENERATE RANDOM NUMBER AND START TIMER 4
+		BSP_LED_Off(LED5);
 		HAL_RNG_GenerateRandomNumber(&Rng_Handle, &randtime);
 			
-		for (int i = 13; i < 33; i++){
+		for (int i = 12; i < 33; i++){
 			randtime &= ~(1<<i);
-		}
-	
-		//MAKE TIMER 4 RUN RANDTIME LONG BEFORE SWITCHING TO NEXT STATE 
-	}
-		/*EE_WriteVariable(VirtAddVarTab[0], BestResult);//, VirtAddVarTab); WRITING TO EEPROM
-		EE_ReadVariable(VirtAddVarTab[0], &EEREAD); READING EEPROM
-		sprintf(lcd_buffer, "%d", EEREAD);PRINTINT NUMBER ON LCD
+		} //makes randtime reasonable time
+    //BSP_LCD_GLASS_Clear();
+		//sprintf(lcd_buffer, "%d", randtime);
+		//BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
+		button_push = false;
 		BSP_LCD_GLASS_Clear();
-		BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
+	}
 		
 	
-
-	if ((*htim).Instance ==TIM4 && statevar == 1){
-		BSP_LED_On(LED5); //AFTER RANDTIME TURN LED ON
-	}
-		/*count ++;
-		sprintf(lcd_buffer, "%d", count);
-		BSP_LCD_GLASS_Clear();
-		BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
-	*/
-	
-	if((*htim).Instance == TIM3 && statevar == 1){
-	//TIMES HOW LONG IT TAKES USER TO PRESS
+	if((*htim).Instance == TIM3 && statevar == 1){ //TIMING HOW LONG IT TAKES USER TO PUSH BUTTON
 	user_time++;
-	//USER_TIME MUST INCREMENT EVERY MILLISECOND
 	}
+
+  if(user_time == randtime){
+    BSP_LED_On(LED5); //TURN ON LED AFTER RANDTIME
+		/*sprintf(lcd_buffer, "%d", user_time);
+		BSP_LCD_GLASS_Clear();
+		BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);*/
+  }
 	
 	if(statevar == 2){
+		sprintf(lcd_buffer, "%d", statevar);
+		BSP_LCD_GLASS_Clear();
+		BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
 		
-		if(user_time < BestResult){ //CHECK IF TIME IS LESS, NEED TO FIND A WAY TO SEE IF BESTRESULT IS EMPTY
-			BestResult = user_time;
-			EE_WriteVariable(VirtAddVarTab[0], BestResult);
-		}
-	}
+    if(user_time < randtime){ //IF PUSHED BEFORE THEN RESTART GAME
+			BSP_LCD_GLASS_Clear();
+			BSP_LCD_GLASS_DisplayString("CHEAT");
+      //BSP_LCD_GLASS_ScrollSentence((uint8_t*) "YOU ARE A CHEATER!", 1, 200);
+      statevar = 0;
+    }
+
+    EE_ReadVariable(VirtAddVarTab[1], &EECHECK); //CHECK TO SEE IF EEprom has been written to
+    if(EECHECK != true){
+      BestResult = user_time - randtime;
+      EE_WriteVariable(VirtAddVarTab[0], BestResult);
+      EE_WriteVariable(VirtAddVarTab[1], true);
+      statevar = 3;
+			BSP_LCD_GLASS_Clear();
+			BSP_LCD_GLASS_DisplayString((uint8_t*)"works");
+  }
+    //Printing "Best Time" text to the screen
+    EE_ReadVariable(VirtAddVarTab[0], &BestResult); //READ BEST TIME
+	if(EECHECK == true){
+		if(user_time < BestResult){ //CHECK IF TIME IS LESS
+			BestResult = user_time - randtime; //STORE USER TIME IN BEST RESULT
+			EE_WriteVariable(VirtAddVarTab[0], BestResult); //WRITE BEST RESULT TO EEPROM
+      statevar = 3; //INCREMENT TO NEXT STATE
+			BSP_LCD_GLASS_Clear();
+			BSP_LCD_GLASS_DisplayString((uint8_t*)"works");
+    }
+  }
+    
+    //Printing best time value to the screen //FLASHES TOO FAST, NEED TO FLASH SLOWER
+    if(statevar == 3){ //FLASHES BEST RESULT
+      sprintf(lcd_buffer, "%d", BestResult); //
+      if(count%2 == 0){
+        BSP_LCD_GLASS_Clear();
+        BSP_LCD_GLASS_ScrollSentence((uint8_t*) "Best Time: ", 1, 200);
+      }
+      else{
+        BSP_LCD_GLASS_Clear();
+		    BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
+      }
+		  count++;
+    }
+
+   
+      
+    }
+  }
+
 	
 
-	}
 
+//logic end
 
 void HAL_TIM_OC_DelayElapsedCallback(TIM_HandleTypeDef * htim) //see  stm32fxx_hal_tim.c for different callback function names. 
 {																																//for timer4 
