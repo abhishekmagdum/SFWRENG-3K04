@@ -146,7 +146,7 @@ int main(void)
   {
 		Error_Handler();
   }
-
+	
 
 	
 
@@ -404,44 +404,174 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
                 user_time1 = system_time;
 								}
 
+                if(statevar == 1){ //AFTER USER PUSH BUTTON, GENERATE RANDOM NUMBER AND START TIMER 4
+                    BSP_LED_Off(LED5);
+                    HAL_RNG_GenerateRandomNumber(&Rng_Handle, &randtime);
+                        
+                    for (int i = 12; i < 33; i++){
+                        randtime &= ~(1<<i);
+                    }
+                }
+
                 if(statevar == 2){
                   user_time2 = system_time;
-                }
-							
-								//button_down = false;
-								//count = 0;
-			/* Toggle LED4 */
-							//BSP_LED_Toggle(LED4);
-							//BSP_LED_Toggle(LED4);
-						//	BSP_LED_Toggle(LED5);
-						//	BSP_LED_Toggle(LED5);
-							//BSP_LCD_GLASS_DisplayChar((uint8_t *)'A', singlePoint, doublePoint, 2);
-							//BSP_LCD_GLASS_Clear();
-							//BSP_LCD_GLASS_DisplayString((uint8_t*)"select");		
+		
+		
+                    if((user_time2 - user_time1) < randtime){ //IF PUSHED BEFORE THEN RESTART GAME
+                            BSP_LCD_GLASS_Clear();
+                            BSP_LCD_GLASS_DisplayString("CHEAT");
+                    //BSP_LCD_GLASS_ScrollSentence((uint8_t*) "YOU ARE A CHEATER!", 1, 200);
+                    statevar = 0;
+                            system_time = 0;
+                    }
+                // if(system_time%100 == 0){
+                    // sprintf(lcd_buffer,"%d", system_time-user_time1);
+                    //BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
 
-							//factor = (factor+1)%2;
-							//__HAL_TIM_SET_COMPARE(&Tim4_Handle, TIM_CHANNEL_1, Tim4_CCR/(factor+1));
-							break;	
+                    //}
+                    if((user_time2 - user_time1) > randtime){
+                    EE_ReadVariable(VirtAddVarTab[1], &EECHECK); //CHECK TO SEE IF EEprom has been written to
+                    if(EECHECK != 1){
+                    BestResult = (user_time2 - user_time1) - randtime;
+                    EE_WriteVariable(VirtAddVarTab[0], BestResult);
+                            sprintf(lcd_buffer, "%d", BestResult);
+                            BSP_LCD_GLASS_Clear();
+                            BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
+                    EE_WriteVariable(VirtAddVarTab[1], 1);
+                    statevar = 3;
+                }
+                    //Printing "Best Time" text to the screen
+                    EE_ReadVariable(VirtAddVarTab[0], &BestResult); //READ BEST TIME
+                    if(EECHECK == 1){
+                        if(((user_time2 - user_time1)- randtime) < BestResult){ //CHECK IF TIME IS LESS
+                            BestResult = (user_time2 - user_time1) - randtime; //STORE USER TIME IN BEST RESULT
+                            EE_WriteVariable(VirtAddVarTab[0], BestResult); //WRITE BEST RESULT TO EEPROM
+                        }
+                        
+                    sprintf(lcd_buffer, "%u", (user_time2 - user_time1)- randtime);
+                    BSP_LCD_GLASS_Clear();
+                    BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);			
+                    statevar = 3; //INCREMENT TO NEXT STATE //BUG IS HERE
+                    }
+                }
+                }
+                
+			
+								break;	
 			case GPIO_PIN_1: //LEFT_JOY_PIN  
 							/* Toggle LED4 */
 							//BSP_LED_Toggle(LED4);
 							//BSP_LCD_GLASS_DisplayChar((uint8_t *)'B', singlePoint, doublePoint, 3);
-							BSP_LCD_GLASS_Clear();
-							BSP_LCD_GLASS_DisplayString((uint8_t*)"left");
+							
+              statevar ++;
+								if(statevar == 1){
+								button_push = true;
+                user_time1 = system_time;
+								}
+
+                if(statevar == 1){ //AFTER USER PUSH BUTTON, GENERATE RANDOM NUMBER AND START TIMER 4
+                    BSP_LED_Off(LED5);
+                    HAL_RNG_GenerateRandomNumber(&Rng_Handle, &randtime);
+                        
+                    for (int i = 12; i < 33; i++){
+                        randtime &= ~(1<<i);
+                    }
+                }
+
+                if(statevar == 2){
+                  user_time2 = system_time;
+                }
+
 							break;
 			case GPIO_PIN_2: //RIGHT_JOY_PIN  
 							/* Toggle LED4 */
 							//BSP_LED_Toggle(LED4);
 							//BSP_LCD_GLASS_DisplayChar((uint8_t *)'B', singlePoint, doublePoint, 3);
-							BSP_LCD_GLASS_Clear();
-							BSP_LCD_GLASS_DisplayString((uint8_t*)"right");			
+									
+              statevar ++;
+								if(statevar == 1){
+								button_push = true;
+                user_time1 = system_time;
+								}
+
+                if(statevar == 1){ //AFTER USER PUSH BUTTON, GENERATE RANDOM NUMBER AND START TIMER 4
+                    BSP_LED_Off(LED5);
+                    HAL_RNG_GenerateRandomNumber(&Rng_Handle, &randtime);
+                        
+                    for (int i = 12; i < 33; i++){
+                        randtime &= ~(1<<i);
+                    }
+                }
+
+                if(statevar == 2){
+                  user_time2 = system_time;
+                }
+
 							break;
 			case GPIO_PIN_3:  //UP_JOY_PIN 
 							/* Toggle LED4 */
 							//BSP_LED_Toggle(LED4);
 							//BSP_LCD_GLASS_DisplayChar((uint8_t *)'B', singlePoint, doublePoint, 3);
-							BSP_LCD_GLASS_Clear();
-							BSP_LCD_GLASS_DisplayString((uint8_t*)"up");
+							
+              statevar ++;
+								if(statevar == 1){
+								button_push = true;
+                user_time1 = system_time;
+								}
+
+                if(statevar == 1){ //AFTER USER PUSH BUTTON, GENERATE RANDOM NUMBER AND START TIMER 4
+                    BSP_LED_Off(LED5);
+                    HAL_RNG_GenerateRandomNumber(&Rng_Handle, &randtime);
+                        
+                    for (int i = 12; i < 33; i++){
+                        randtime &= ~(1<<i);
+                    }
+                }
+
+                if(statevar == 2){
+                  user_time2 = system_time;
+                }
+
+                if(statevar == 2){
+		
+		
+                    if((user_time2 - user_time1) < randtime){ //IF PUSHED BEFORE THEN RESTART GAME
+                            BSP_LCD_GLASS_Clear();
+                            BSP_LCD_GLASS_DisplayString("CHEAT");
+                    //BSP_LCD_GLASS_ScrollSentence((uint8_t*) "YOU ARE A CHEATER!", 1, 200);
+                    statevar = 0;
+                            system_time = 0;
+                    }
+                // if(system_time%100 == 0){
+                    // sprintf(lcd_buffer,"%d", system_time-user_time1);
+                    //BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
+
+                    //}
+                
+                    EE_ReadVariable(VirtAddVarTab[1], &EECHECK); //CHECK TO SEE IF EEprom has been written to
+                    if(EECHECK != 1){
+                    BestResult = (user_time2 - user_time1) - randtime;
+                    EE_WriteVariable(VirtAddVarTab[0], BestResult);
+                            sprintf(lcd_buffer, "%d", BestResult);
+                            BSP_LCD_GLASS_Clear();
+                            BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
+                    EE_WriteVariable(VirtAddVarTab[1], 1);
+                    statevar = 3;
+                }
+                    //Printing "Best Time" text to the screen
+                    EE_ReadVariable(VirtAddVarTab[0], &BestResult); //READ BEST TIME
+                    if(EECHECK == 1){
+                        if(((user_time2 - user_time1)- randtime) < BestResult){ //CHECK IF TIME IS LESS
+                            BestResult = (user_time2 - user_time1) - randtime; //STORE USER TIME IN BEST RESULT
+                            EE_WriteVariable(VirtAddVarTab[0], BestResult); //WRITE BEST RESULT TO EEPROM
+                    sprintf(lcd_buffer, "%u", ((user_time2- user_time1)-randtime));
+                    BSP_LCD_GLASS_Clear();
+                    BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);			
+                    statevar = 3; //INCREMENT TO NEXT STATE //BUG IS HERE
+                    }
+                }
+                }
+
 							break;
 			
 			case GPIO_PIN_5:  //DOWN_JOY_PIN
@@ -451,8 +581,26 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 							/* Toggle LED4 */
 							//BSP_LED_Toggle(LED5);
 							//BSP_LCD_GLASS_DisplayChar((uint8_t *)'B', singlePoint, doublePoint, 3);
-							BSP_LCD_GLASS_Clear();
-							BSP_LCD_GLASS_DisplayString((uint8_t*)"down");
+							
+              statevar ++;
+								if(statevar == 1){
+								button_push = true;
+                user_time1 = system_time;
+								}
+
+                if(statevar == 1){ //AFTER USER PUSH BUTTON, GENERATE RANDOM NUMBER AND START TIMER 4
+                    BSP_LED_Off(LED5);
+                    HAL_RNG_GenerateRandomNumber(&Rng_Handle, &randtime);
+                        
+                    for (int i = 12; i < 33; i++){
+                        randtime &= ~(1<<i);
+                    }
+                }
+
+                if(statevar == 2){
+                  user_time2 = system_time;
+                }
+
 							break;
 			default://
 						//default
@@ -471,21 +619,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) //see  stm32fxx_hal_
 	if ((*htim).Instance==TIM2 && statevar == 0){    
 		BSP_LED_Toggle(LED5); //BLINK LED AT START
 	}
-
-	
-	if(statevar == 1 && button_push == true){ //AFTER USER PUSH BUTTON, GENERATE RANDOM NUMBER AND START TIMER 4
-		BSP_LED_Off(LED5);
-		HAL_RNG_GenerateRandomNumber(&Rng_Handle, &randtime);
-			
-		for (int i = 12; i < 33; i++){
-			randtime &= ~(1<<i);
-		} //makes randtime reasonable time
-    //BSP_LCD_GLASS_Clear();
-		//sprintf(lcd_buffer, "%d", randtime);
-		//BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
-		button_push = false;
-		BSP_LCD_GLASS_Clear();
-	}
 		
 	
 	if((*htim).Instance == TIM3 && statevar >= 1){ //TIMING HOW LONG IT TAKES USER TO PUSH BUTTON
@@ -494,53 +627,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) //see  stm32fxx_hal_
 
   if(system_time == randtime){
     BSP_LED_On(LED5); //TURN ON LED AFTER RANDTIME
-    //user_time = system_time;
-		/*sprintf(lcd_buffer, "%d", system_time);
-		BSP_LCD_GLASS_Clear();
-		BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);*/
   }
+    if(system_time >= randtime && statevar == 1){
+        if((system_time - (user_time1 + randtime))%100 == 0){
+            sprintf(lcd_buffer, "%d", (system_time - (user_time1 + randtime)));
+            BSP_LCD_GLASS_Clear();
+            BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
+        }
+    } 
 	
-	if(statevar == 2){
-		//sprintf(lcd_buffer, "%d", statevar);
-		//BSP_LCD_GLASS_Clear();
-		//BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
-		
-    if((user_time2 - user_time1) < randtime){ //IF PUSHED BEFORE THEN RESTART GAME
-			BSP_LCD_GLASS_Clear();
-			BSP_LCD_GLASS_DisplayString("CHEAT");
-      //BSP_LCD_GLASS_ScrollSentence((uint8_t*) "YOU ARE A CHEATER!", 1, 200);
-      statevar = 0;
-			system_time = 0;
-    }
-   // if(system_time%100 == 0){
-     // sprintf(lcd_buffer,"%d", system_time-user_time1);
-      //BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
-
-    //}
-  
-    EE_ReadVariable(VirtAddVarTab[1], &EECHECK); //CHECK TO SEE IF EEprom has been written to
-    if(EECHECK != 1){
-      BestResult = (user_time2 - user_time1) - randtime;
-      EE_WriteVariable(VirtAddVarTab[0], BestResult);
-			sprintf(lcd_buffer, "%d", BestResult);
-			BSP_LCD_GLASS_Clear();
-			BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
-      EE_WriteVariable(VirtAddVarTab[1], 1);
-      statevar = 3;
-  }
-    //Printing "Best Time" text to the screen
-    EE_ReadVariable(VirtAddVarTab[0], &BestResult); //READ BEST TIME
-	if(EECHECK == 1){
-		if(((user_time2 - user_time1)- randtime) < BestResult){ //CHECK IF TIME IS LESS
-			BestResult = (user_time2 - user_time1) - randtime; //STORE USER TIME IN BEST RESULT
-			EE_WriteVariable(VirtAddVarTab[0], BestResult); //WRITE BEST RESULT TO EEPROM
-      sprintf(lcd_buffer, "%u", ((user_time2- user_time1)-randtime));
-      BSP_LCD_GLASS_Clear();
-      BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);			
-      statevar = 3; //INCREMENT TO NEXT STATE //BUG IS HERE
-    }
-  }
-}
+	
     //Printing best time value to the screen //FLASHES TOO FAST, NEED TO FLASH SLOWER
     if(statevar == 3 && system_time%1000 == 0){ //FLASHES BEST RESULT
       sprintf(lcd_buffer, "%d", BestResult); //
