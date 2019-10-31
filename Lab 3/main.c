@@ -49,8 +49,7 @@ NOTE: students can also configure the TimeStamp pin
 
 
 /* Includes ------------------------------------------------------------------*/
-#include "main.h"
-#include "math.h"
+#include "main.h" //adding libraries requred for code"
 #include "stdio.h"
 #include "string.h"
 #include "stdbool.h"
@@ -105,7 +104,7 @@ void RTC_Config(void);
 void RTC_AlarmAConfig(void);
 
 //our functions
-void currentDate(void);
+void currentDate(void); //function prototypes
 void RTC_SET_TIME(void);
 void RTC_SET_DATE(void);
 void Store_Time(void);
@@ -113,15 +112,20 @@ void Get_Time(void);
 	
 
 //our variables
-int left_push = 0;
+int left_push = 0; //variables that incriment when joystick button is pressed
 int right_push = 0;
 int select_push = 0;
 bool leftpressed = false;  //Variables to determine if joystick is pressed in certain directions
 bool rightpressed = false;
-bool screen_on = false;
+bool screen_on = false; //flashes screen to indicate edit mode
 int dateCounter = 0;
-int selpressed = 0;
-bool toggle = false;
+int selpressed = 0; //incriments in edit mode when user presses joystick in
+bool toggle = false; //variable that toggles between true and false
+
+int Time1[7]; //int array to show last 2 times user pressed joystick
+int Time2[7];
+
+FILE *f;
 /* Private functions ---------------------------------------------------------*/
 
 /**
@@ -178,48 +182,18 @@ int main(void)
 
 
 //*********************Testing I2C EEPROM------------------
-
-	//the following variables are for testging I2C_EEPROM
-	
-
-
-	EE_status=I2C_ByteWrite(&pI2c_Handle,EEPROM_ADDRESS, memLocation, data1);
-
-  
-  if(EE_status != HAL_OK)
-  {
-    I2C_Error(&pI2c_Handle);
-  }
-	
-	
-	BSP_LCD_GLASS_Clear();
-	if (EE_status==HAL_OK) {
-			BSP_LCD_GLASS_DisplayString((uint8_t*)"w 1 ok");
-	}else
-			BSP_LCD_GLASS_DisplayString((uint8_t*)"w 1 X");
-
-	HAL_Delay(1000);
-	
-	EE_status=I2C_ByteWrite(&pI2c_Handle,EEPROM_ADDRESS, memLocation+1 , data2);
-	
-  if(EE_status != HAL_OK)
-  {
-    I2C_Error(&pI2c_Handle);
-  }
-	
-	BSP_LCD_GLASS_Clear();
-	if (EE_status==HAL_OK) {
-			BSP_LCD_GLASS_DisplayString((uint8_t*)"w 2 ok");
-	}else
-			BSP_LCD_GLASS_DisplayString((uint8_t*)"w 2 X");
-
-	HAL_Delay(1000);
+	Get_Time();
+	/
 	
 	readData=I2C_ByteRead(&pI2c_Handle,EEPROM_ADDRESS, memLocation);
-
 	BSP_LCD_GLASS_Clear();
-	if (data1 == readData) {
-			BSP_LCD_GLASS_DisplayString((uint8_t*)"r 1 ok");;
+	sprintf((char*)lcd_buffer, "%02d", readData);
+	BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
+	HAL_Delay(1000);
+	/*BSP_LCD_GLASS_Clear();
+	if ( == readData) {
+		
+			
 	}else{
 			BSP_LCD_GLASS_DisplayString((uint8_t*)"r 1 X");
 	}	
@@ -235,7 +209,7 @@ int main(void)
 			BSP_LCD_GLASS_DisplayString((uint8_t *)"r 2 X");
 	}	
 
-	HAL_Delay(1000);
+	HAL_Delay(1000);*/
 	
 
 
@@ -252,7 +226,7 @@ int main(void)
 					SEL_Pressed_StartTick=HAL_GetTick(); 
 					while(BSP_JOY_GetState() == JOY_SEL) {  //while the selection button is pressed)	
 						if ((HAL_GetTick()-SEL_Pressed_StartTick)>800) {	
-							currentDate();				
+							currentDate();	//calls the current date function when joystick is held for more than 800ms
 						} 
 					}
 					
@@ -319,7 +293,7 @@ void SystemClock_Config(void)
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};                                            
 
   // RTC requires to use HSE (or LSE or LSI, suspect these two are not available)
-	//reading from RTC requires the APB clock is 7 times faster than HSE clock, 
+	//reading from RTC requires the APB clockis 7 times faster than HSE clock, 
 	//so turn PLL on and use PLL as clock source to sysclk (so to APB)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE | RCC_OSCILLATORTYPE_MSI;     //RTC need either HSE, LSE or LSI           
   
@@ -382,7 +356,7 @@ void SystemClock_Config(void)
 
 
 void RTC_Config(void) {
-	RTC_TimeTypeDef RTC_TimeStructure;
+	RTC_TimeTypeDef RTC_TimeStructure; //structs to define time and date variables
 	RTC_DateTypeDef RTC_DateStructure;
 	
 
@@ -418,6 +392,7 @@ void RTC_Config(void) {
 				RTCHandle.Instance = RTC;
 				RTCHandle.Init.HourFormat = RTC_HOURFORMAT_12; //12 hour display
 				
+				//variables used for i2c comms
 				RTCHandle.Init.AsynchPrediv = 127; //2^7 -1
 				RTCHandle.Init.SynchPrediv = 255; //2^8 -1 to get 1 frequency
 				
@@ -590,27 +565,35 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch (GPIO_Pin) {
 			case GPIO_PIN_0: 		               //SELECT button					
-						HAL_RTC_GetTime(&RTCHandle, &RTC_TimeStructure, RTC_FORMAT_BIN);
-						ss = RTC_TimeStructure.Seconds;
-						mm = RTC_TimeStructure.Minutes;
-						hh = RTC_TimeStructure.Hours;
-						select_push ++;
-						Store_Time();
+						if(rightpressed == false){
+							HAL_RTC_GetTime(&RTCHandle, &RTC_TimeStructure, RTC_FORMAT_BIN);
+							ss = RTC_TimeStructure.Seconds; //saving each RTC parameter into a variable
+							mm = RTC_TimeStructure.Minutes;
+							hh = RTC_TimeStructure.Hours;
+							wd = RTC_DateStructure.WeekDay;
+							dd = RTC_DateStructure.Date;
+							mo = RTC_DateStructure.Month;
+							yy = RTC_DateStructure.Year;
+							select_push ++; //incimenting variable used in time and date edit mode
+							Store_Time(); 
+						}
               //Setting other varibales to 0
               //leftpressed = 0;
               //rightpressed = 0;
 						  break;	
 			case GPIO_PIN_1:     //left button						
-							leftpressed = !leftpressed;
+							leftpressed = !leftpressed; //toggling leftpressed
+							//if(leftpressed == true){
+							//}
 							left_push ++;
-							left_push %= 6; //sets left_push value back to 0
+							left_push %= 7; //sets left_push value back to 0
 							
               //Setting other varibales to 0
               //selpressed = 0;
-              //rightpressed = 0;
+              //rightpressed = 0; 
 							break;
 			case GPIO_PIN_2:    //right button						  to play again.
-							rightpressed = !rightpressed;
+							rightpressed = !rightpressed; //toggling rightpressed
 							right_push ++;
 							right_push %= 3;  //sets right_push value back to 0
 							right_push = 0;
@@ -691,76 +674,124 @@ void RTC_SET_TIME(){//int left_push, int right_push, int select_push){
 	}
 }
 
+//store time in mostrecent, move most recent to secondmostrecent
+//write both to EE_PROM
+
+//upon reset read both values
+
 //int rollstate = 0;
 void RTC_SET_DATE(void){
 	HAL_RTC_GetDate(&RTCHandle, &RTC_DateStructure, RTC_FORMAT_BIN); //stores current time in rtc_structure
 	
 	//sprintf((char*)lcd_buffer, "%02d%02d%02d", RTC_DateStructure.Day, RTC_DateStructure.Month,  RTC_TimeStructure.Year); //stores time in lcd_buffer
 	//Roll Weekday, date, month anad year
-	switch(left_push){
-		case 3:// Weekday
-			sprintf((char*)lcd_buffer, "%02d", RTC_DateStructure.WeekDay);
+	if(left_push == 3){ //toggling the date for user edit
+		if(screen_on == false){
 			BSP_LCD_GLASS_Clear();
+			sprintf((char*)lcd_buffer, "DATE%02d", RTC_DateStructure.Date + select_push);
 			BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
-			break;
-		case 4://Date
-			sprintf((char*)lcd_buffer, "%02d", RTC_DateStructure.Date);
+		}
+		else{
 			BSP_LCD_GLASS_Clear();
+			sprintf((char*)lcd_buffer, "DATE");
 			BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
-			break;
-		case 5://Monthy
-			sprintf((char*)lcd_buffer, "%02d", RTC_DateStructure.Month);
+		}
+	}
+
+	else if(left_push == 4){ //toggling the month for user edit
+		if(screen_on == false){
 			BSP_LCD_GLASS_Clear();
+			sprintf((char*)lcd_buffer, "MNTH%02d", RTC_DateStructure.Month + select_push);
 			BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
-			break;
-		case 6://Year
-			sprintf((char*)lcd_buffer, "%02d", RTC_DateStructure.Year);
+		}
+		else{
 			BSP_LCD_GLASS_Clear();
+			sprintf((char*)lcd_buffer, "MNTH");
 			BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
-			break;
-		
-		default:
-			break;
-	}	
-	BSP_LCD_GLASS_Clear(); // display to lcd
-	BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
+		}
+	}
+
+	else if(left_push == 5){ //toggling the year for user edit
+		if(screen_on == false){
+			BSP_LCD_GLASS_Clear();
+			sprintf((char*)lcd_buffer, "YEAR%02d", RTC_DateStructure.Year + select_push);
+			BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
+		}
+		else{
+			BSP_LCD_GLASS_Clear();
+			sprintf((char*)lcd_buffer, "YEAR");
+			BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
+		}
+	}
+
+	else if(left_push == 6){ //toggling the weekday for user edit
+		if(screen_on == false){
+			BSP_LCD_GLASS_Clear();
+			sprintf((char*)lcd_buffer, "WEEK%02d", RTC_DateStructure.WeekDay + select_push);
+			BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
+		}
+		else{
+			BSP_LCD_GLASS_Clear();
+			sprintf((char*)lcd_buffer, "WEEK");
+			BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
+		}
+	}
+
+	//not sure if this has to be here
+	// BSP_LCD_GLASS_Clear(); // display to lcd
+	// BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
 }
 
 void Store_Time(void){
 	//write to eeprom
-	int time[] = {hh, mm, ss};
-	for(int x = 0; x < 3; x++){
-		EE_status = I2C_ByteWrite(&pI2c_Handle, EEPROM_ADDRESS, memLocation = x, time[x]);
+	int temp[7] = Time1;
+	Time2 = Time1;
+	Time1 = {yy, mm, dd, wd, hh, mm, ss};
+	for(int x = 0; x < 7; x++){
+		EE_status = I2C_ByteWrite(&pI2c_Handle, EEPROM_ADDRESS, memLocation + x, Time1[x]);
 		if(EE_status != HAL_OK){
 			I2C_Error(&pI2c_Handle);
 		}
 		
 		if (EE_status == HAL_OK){
 			BSP_LCD_GLASS_Clear();
-			sprintf((char*)lcd_buffer, "OK: %02d", time[x]);
-			BSP_LCD_GLASS_DisplayString((char*)lcd_buffer);
-			HAL_Delay(1000);
+			BSP_LCD_GLASS_DisplayString((uint8_t*)"Writing");
+			HAL_Delay(500);
 		}
 	}
+	for(int x = 7; x< 14; x++){
+		EE_status = I2C_ByteWrite(&pI2c_Handle, EEPROM_ADDRESS, memLocation + x, Time1[x-7]);
+		if(EE_status != HAL_OK){
+			I2C_Error(&pI2c_Handle);
+		}
+		
+		if (EE_status == HAL_OK){
+			BSP_LCD_GLASS_Clear();
+			BSP_LCD_GLASS_DisplayString((uint8_t*)"Writing");
+			HAL_Delay(500);
+		}
+	}
+	
 }
 
-void Get_Time(void){
-	//read time from eeprom
-	readData = I2C_ByteRead(&pI2c_Handle, EEPROM_ADDRESS, memLocation);
-	if(ss == readData){
-		BSP_LCD_GLASS_Clear();
-		BSP_LCD_GLASS_DisplayString((uint8_t*)"GOATING");
-	}
-	else{
-		BSP_LCD_GLASS_Clear();
-		BSP_LCD_GLASS_DisplayString((uint8_t*)"Le Fail");
+void Get_Time(void){ //read time form EEPROM
+	BSP_LCD_GLASS_Clear();
+	BSP_LCD_GLASS_DisplayString((uint8_t*)"Reading");
+	for(int x = 0; x < 14; x++){
+		readData = I2C_ByteRead(&pI2c_Handle, EEPROM_ADDRESS, memLocation+x);
+		if(x < 7){
+			Time1[x] = readData;
+		}
+		else{
+			Time2[x-7] = readData;
+		}
 	}
 }
 
 //Function that gets called by the interupt
 void HAL_RTC_AlarmAEventCallback(RTC_HandleTypeDef *hrtc)
 {
-  BSP_LED_Toggle(LED5);
+    BSP_LED_Toggle(LED5);
 
 	if(rightpressed == false){ // shows current time on screen
 	HAL_RTC_GetTime(&RTCHandle, &RTC_TimeStructure, RTC_FORMAT_BIN); //stores current time in rtc_structure
