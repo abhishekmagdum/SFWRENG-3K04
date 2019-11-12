@@ -44,6 +44,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stdbool.h"
 
 /** @addtogroup STM32L4xx_HAL_Examples
   * @{
@@ -54,6 +55,11 @@
   */
 
 /* Private typedef -----------------------------------------------------------*/
+#define  PERIOD_VALUE       (uint32_t)(666 - 1) //Period Value
+#define  PULSELOW_VALUE        (uint32_t)(PERIOD_VALUE/3)        /* Capture Compare 1 Value  */
+#define  PULSEMEDIUM_VALUE       (uint32_t)(PERIOD_VALUE*2/3) /* Capture Compare 2 Value  */
+#define  PULSEHIGH_VALUE       (uint32_t)(PERIOD_VALUE)        /* Capture Compare 3 Value  */
+#define  PULSEOFF_VALUE       (uint32_t)(PERIOD_VALUE*0)        /* Capture Compare 3 Value  */
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
@@ -69,6 +75,7 @@ TIM_OC_InitTypeDef Tim3_OCInitStructure, Tim4_OCInitStructure;
 uint16_t Tim4_PrescalerValue; //prescaler value for Timer 4
 
 
+
 __IO uint32_t ADC1ConvertedValue;   //if declare it as 16t, it will not work.
 
 
@@ -76,7 +83,7 @@ volatile double  setPoint=23.5;
 
 double measuredTemp;
 
-
+ bool stateVar = false;
 
 char lcd_buffer[6];    // LCD display buffer
 
@@ -117,8 +124,7 @@ int main(void)
 	
 	
 
-	SystemClock_Config();  
-  //TIM4_Config(); 
+	SystemClock_Config();   
 
 	HAL_InitTick(0x0000); // set systick's priority to the highest.
 
@@ -129,26 +135,60 @@ int main(void)
 	BSP_LCD_GLASS_Init();
 	//HAL_ADC_MspInit(&Adc_Handle);
 	
-	
-	
 	BSP_JOY_Init(JOY_MODE_EXTI);
 
 	ADC_DMA_Config();
+	TIM4_Config();
   
 	BSP_LCD_GLASS_Clear();
 	//sprintf(lcd_buffer,"%s","hello");
 //BSP_LCD_GLASS_DisplayString((uint8_t*)"HELLO");
- 	
+  
+  int setTemperature = 0;
+
   while (1)
   {
-		BSP_LCD_GLASS_Clear();
-		measuredTemp = ADC1ConvertedValue*0.024414062;
-		sprintf((char*)lcd_buffer, "%.2f", measuredTemp);
-		BSP_LCD_GLASS_Clear();
-		BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
-		BSP_LED_Toggle(LED5);
-		HAL_Delay(500);
-	} //end of while 1
+		
+    if(stateVar == false){
+      BSP_LCD_GLASS_Clear();
+      measuredTemp = ADC1ConvertedValue*0.024414062;
+      sprintf((char*)lcd_buffer, "%.2f", measuredTemp);
+      BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
+      // BSP_LED_Toggle(LED5);
+      // HAL_Delay(500);
+	  }
+
+    if(stateVar == true){
+      BSP_LCD_GLASS_Clear();
+      sprintf((char*)lcd_buffer, "%f", setPoint);
+      BSP_LCD_GLASS_DisplayString((uint8_t*)lcd_buffer);
+    }
+    if (measuredTemp - 10 >= setPoint){
+      Tim4_OCInitStructure.Pulse = PULSEHIGH_VALUE;
+			
+    }
+    
+    else if(measuredTemp - 5 >= setPoint){
+      Tim4_OCInitStructure.Pulse = PULSEMEDIUM_VALUE;
+    }
+
+    else if(measuredTemp > setPoint){
+      Tim4_OCInitStructure.Pulse = PULSELOW_VALUE;
+    }
+
+    else{
+      Tim4_OCInitStructure.Pulse = 0;
+    }
+		if (HAL_TIM_PWM_ConfigChannel(&Tim4_Handle, &Tim4_OCInitStructure, TIM_CHANNEL_1) != HAL_OK){
+    Error_Handler();
+  }
+
+  if (HAL_TIM_PWM_Start(&Tim4_Handle, TIM_CHANNEL_1) != HAL_OK){
+    Error_Handler();
+  }
+  }
+
+  
 
 }
 
@@ -282,15 +322,38 @@ void ADC_DMA_Config(void){
 void  TIM4_Config(void)
 {
   
-  /* Compute the prescaler value to have TIM4 counter clock equal to 10 KHz */
-  Tim4_PrescalerValue = (uint16_t) (SystemCoreClock/ 1) - 1;
+  /* Compute the prescaler value to have TIM4 counter clock equal to 1 Hz */
+  Tim4_PrescalerValue = (uint16_t) (SystemCoreClock/ 160000) - 1;
   
   /* Set TIM3 instance */
   Tim4_Handle.Instance = TIM4; 
-	Tim4_Handle.Init.Period = 40000; // Arr register (ovrflow) for timer 4, want timer 3
+	Tim4_Handle.Init.Period = PERIOD_VALUE; // Arr register (ovrflow) for timer 4, want timer 3
+
   Tim4_Handle.Init.Prescaler = Tim4_PrescalerValue;
   Tim4_Handle.Init.ClockDivision = 0;
   Tim4_Handle.Init.CounterMode = TIM_COUNTERMODE_UP;
+  Tim4_Handle.Init.RepetitionCounter = 0;
+
+  if(HAL_TIM_PWM_Init(&Tim4_Handle) != HAL_OK){
+    Error_Handler();
+  }
+
+  Tim4_OCInitStructure.OCMode = TIM_OCMODE_PWM1;
+  Tim4_OCInitStructure.OCPolarity = TIM_OCPOLARITY_HIGH;
+  Tim4_OCInitStructure.OCFastMode = TIM_OCFAST_DISABLE;
+  Tim4_OCInitStructure.OCNPolarity = TIM_OCNPOLARITY_HIGH;
+  Tim4_OCInitStructure.OCNIdleState = TIM_OCNIDLESTATE_RESET;
+
+  Tim4_OCInitStructure.OCIdleState = TIM_OCIDLESTATE_RESET;
+
+  Tim4_OCInitStructure.Pulse = PULSEMEDIUM_VALUE;
+  if (HAL_TIM_PWM_ConfigChannel(&Tim4_Handle, &Tim4_OCInitStructure, TIM_CHANNEL_1) != HAL_OK){
+    Error_Handler();
+  }
+
+  if (HAL_TIM_PWM_Start(&Tim4_Handle, TIM_CHANNEL_1) != HAL_OK){
+    Error_Handler();
+  }
   //if(HAL_TIM_Base_Init(&Tim4_Handle) != HAL_OK)
   //{
     /* Initialization Error */
@@ -310,7 +373,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
   switch (GPIO_Pin) {
 			case GPIO_PIN_0: 		               //SELECT button					
-						Show_Temp();
+            stateVar = !stateVar;
 						break;	
 			case GPIO_PIN_1:     //left button						
 							//Show_Temp();
@@ -319,11 +382,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 						
 							break;
 			case GPIO_PIN_3:    //up button							
-				
+
+              setPoint = setPoint + 0.5;
 							break;
 			
 			case GPIO_PIN_5:    //down button						
-					
+              setPoint = setPoint - 0.5;
 							break;
 			
 			default://

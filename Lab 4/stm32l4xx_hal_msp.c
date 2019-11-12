@@ -132,27 +132,22 @@ void HAL_TIM_OC_MspInit(TIM_HandleTypeDef *htim)
 
 }
 
-
+//PWM stuff abhishek added (Delte if broken)
 void HAL_TIM_PWM_MspInit(TIM_HandleTypeDef *htim)
 {	
-	GPIO_InitTypeDef   GPIO_InitStruct;
+  GPIO_InitTypeDef   GPIO_InitStruct;
 
-  TIM4_CLK_ENABLE();
+  //__HAL_RCC_TIM4_CLK_ENABLE();
 
-  TIM4_CHANNEL_GPIO_PORT();
+  __HAL_RCC_TIM4_CLK_ENABLE();
 
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
 
-  GPIO_InitStruct.Alternate = TIM4_GPIO_A_CHANNEL1;
-  GPIO_InitStruct.Pin = TIM4_GPIO_PIN_CHANNEL1;
-  HAL_GPIO_Init(TIM4_GPIO_PORT_CHANNEL1, &GPIO_InitStruct);
-
-
- 
-
-
+  GPIO_InitStruct.Alternate = GPIO_AF2_TIM4;
+  GPIO_InitStruct.Pin = GPIO_PIN_6;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 }
 
 
@@ -172,7 +167,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
 
 	/* Enable DMA2 clock */
   __HAL_RCC_DMA2_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
+	__HAL_RCC_GPIOA_CLK_ENABLE();
 	//HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 	
   /*##-2- Configure peripheral GPIO ##########################################*/ 
