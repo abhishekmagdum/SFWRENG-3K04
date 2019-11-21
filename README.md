@@ -1,2 +1,2 @@
-# SFWRENG-3K04
-3K04 - Software Development Material and Projects
+# SFWRENG-3TA4
+3TA4 - Embedded Systems Design I Material and Projects
